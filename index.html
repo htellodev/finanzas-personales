@@ -353,6 +353,10 @@
       <input type="checkbox" id="egr-pagado" onclick="event.stopPropagation()" />
       <label for="egr-pagado">Pagado</label>
     </div>
+    <div class="check-row" onclick="document.getElementById('egr-recurrente').click()">
+      <input type="checkbox" id="egr-recurrente" onclick="event.stopPropagation()" />
+      <label for="egr-recurrente">🔄 Incluir cada mes (recurrente)</label>
+    </div>
     <div class="modal-actions-3">
       <button class="btn-cancel" onclick="cerrarModal('modal-egreso')">Cancelar</button>
       <button id="egr-del-btn" class="btn-danger" onclick="eliminarEgreso()" style="display:none">Eliminar</button>
@@ -727,6 +731,11 @@ function abrirModalEgreso(id=null) {
   document.getElementById("egr-nombre").value          = e?.nombre ?? "";
   document.getElementById("egr-monto").value           = e?.monto ? e.monto.toLocaleString("es-CL") : "";
   document.getElementById("egr-pagado").checked        = e?.pagado ?? false;
+  const plantillaActiva = e?.plantilla_id
+    ? (egresosPlantilla.find(p=>p.id===e.plantilla_id)?.activo ?? false)
+    : false;
+  document.getElementById("egr-recurrente").checked    = plantillaActiva;
+  document.getElementById("egr-id").dataset.plantillaId = e?.plantilla_id ?? "";
   document.getElementById("egr-del-btn").style.display = e ? "block" : "none";
   document.getElementById("egr-btn").style.gridColumn  = e ? "span 1" : "span 2";
   setCatModal("egr", e?.categoria ?? "cuenta_basica");
@@ -735,17 +744,37 @@ function abrirModalEgreso(id=null) {
 }
 
 async function guardarEgreso() {
-  const id      = document.getElementById("egr-id").value;
-  const periodo = document.getElementById("egr-periodo-val").value;
-  const nombre  = document.getElementById("egr-nombre").value.trim();
-  const cat     = getCatModal("egr");
+  const id         = document.getElementById("egr-id").value;
+  const periodo    = document.getElementById("egr-periodo-val").value;
+  const nombre     = document.getElementById("egr-nombre").value.trim();
+  const cat        = getCatModal("egr");
   if (!cat) { alert("Ingresa el nombre de la nueva categoría"); return; }
-  const monto   = parseMiles(document.getElementById("egr-monto"));
-  const pagado  = document.getElementById("egr-pagado").checked;
+  const monto      = parseMiles(document.getElementById("egr-monto"));
+  const pagado     = document.getElementById("egr-pagado").checked;
+  const recurrente = document.getElementById("egr-recurrente").checked;
   if (!nombre) { alert("Ingresa un nombre"); return; }
   const btn=document.getElementById("egr-btn");
   btn.textContent="Guardando…"; btn.disabled=true;
-  const body = {nombre, categoria:cat, monto, pagado};
+
+  // Manejar plantilla recurrente
+  let plantilla_id = document.getElementById("egr-id").dataset.plantillaId || null;
+  if (recurrente) {
+    const existente = egresosPlantilla.find(p=>p.nombre.toLowerCase()===nombre.toLowerCase());
+    if (existente) {
+      plantilla_id = existente.id;
+      await fetch(`${SB_URL}/rest/v1/egresos_plantilla?id=eq.${plantilla_id}`,
+        {method:"PATCH", headers:{...HDR,"Content-Type":"application/json"}, body:JSON.stringify({activo:true, categoria:cat})});
+    } else {
+      const rP = await fetch(`${SB_URL}/rest/v1/egresos_plantilla`,
+        {method:"POST", headers:{...HDR,"Content-Type":"application/json","Prefer":"return=representation"}, body:JSON.stringify({nombre, categoria:cat, activo:true, monto_base:monto})});
+      if (rP.ok||rP.status===201) { const [p]=await rP.json(); plantilla_id=p.id; }
+    }
+  } else if (!recurrente && plantilla_id) {
+    await fetch(`${SB_URL}/rest/v1/egresos_plantilla?id=eq.${plantilla_id}`,
+      {method:"PATCH", headers:{...HDR,"Content-Type":"application/json"}, body:JSON.stringify({activo:false})});
+  }
+
+  const body = {nombre, categoria:cat, monto, pagado, ...(plantilla_id?{plantilla_id}:{plantilla_id:null})};
   const res = id
     ? await fetch(`${SB_URL}/rest/v1/egresos?id=eq.${id}`, {method:"PATCH", headers:{...HDR,"Content-Type":"application/json"}, body:JSON.stringify(body)})
     : await fetch(`${SB_URL}/rest/v1/egresos`, {method:"POST", headers:{...HDR,"Content-Type":"application/json","Prefer":"return=minimal"}, body:JSON.stringify({...body,periodo})});
