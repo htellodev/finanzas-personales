@@ -1389,12 +1389,21 @@ async function procesarPDF(input) {
     let texto  = "";
     for (let i=1; i<=pdf.numPages; i++) {
       const page  = await pdf.getPage(i);
-      const items = await page.getTextContent();
-      texto += items.items.map(s=>s.str).join(" ") + "\n";
+      const content = await page.getTextContent();
+      // Reordenar por posición Y (de arriba a abajo) y X (izq a der)
+      // PDF.js entrega items en orden interno del PDF (puede ser por columnas)
+      // Los coordenadas están en transform[4]=x, transform[5]=y
+      const sorted = [...content.items]
+        .filter(it => it.str.trim())
+        .sort((a, b) => {
+          const dy = b.transform[5] - a.transform[5]; // y desc (arriba primero)
+          if (Math.abs(dy) > 3) return dy;            // filas distintas
+          return a.transform[4] - b.transform[4];      // misma fila: izq a der
+        });
+      texto += sorted.map(s => s.str).join(" ") + "\n";
     }
 
-    // Normalizar: PDF.js a veces separa dígitos de sus separadores con espacios
-    // Ej: "1 . 744 . 918" → "1.744.918", "30 , 00" → "30,00"
+    // Normalizar espacios dentro de números (artefacto PDF)
     for (let i=0; i<4; i++) {
       texto = texto.replace(/(\d)\s*([.,])\s*(\d)/g, "$1$2$3");
     }
