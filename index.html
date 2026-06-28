@@ -405,6 +405,21 @@
   </button>
 </nav>
 
+<!-- ── Login screen ── -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">
+  <div style="font-size:40px;margin-bottom:8px">💰</div>
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Finanzas Personales</h1>
+  <p style="font-size:13px;color:var(--sub);margin-bottom:32px">Inicia sesión para continuar</p>
+  <div style="width:100%;max-width:360px">
+    <input id="login-email" class="modal-input" type="email" inputmode="email" autocomplete="email" placeholder="Email" style="margin-bottom:10px" />
+    <input id="login-pass"  class="modal-input" type="password" autocomplete="current-password" placeholder="Contraseña" style="margin-bottom:6px" onkeydown="if(event.key==='Enter')hacerLogin()" />
+    <div id="login-error" style="color:var(--red);font-size:13px;min-height:20px;margin-bottom:10px;text-align:center"></div>
+    <button id="login-btn" onclick="hacerLogin()" style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer">
+      Ingresar
+    </button>
+  </div>
+</div>
+
 <script>
 const SB_URL = "https://reimjpjvaudgpkdytdkc.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlaW1qcGp2YXVkZ3BrZHl0ZGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NzA3MzEsImV4cCI6MjA5NjM0NjczMX0.NwRiO9Ssc7oI4pZvjFxzivQagshSg74g5-OnZ86Cg7k";
@@ -462,7 +477,8 @@ async function fetchData() {
       fetch(`${SB_URL}/rest/v1/egresos?select=*&order=periodo.desc,categoria.asc,nombre.asc`, {headers:HDR})
     ]);
 
-    // Verificar que la respuesta sea exitosa antes de parsear
+    // Verificar respuesta — 401 = sesión expirada
+    if (rL.status === 401) throw new Error("401");
     if (!rL.ok) { const e=await rL.json(); throw new Error(e?.message || `HTTP ${rL.status}`); }
 
     const rawL=await rL.json(); allData          = Array.isArray(rawL)?rawL:[];
@@ -481,6 +497,10 @@ async function fetchData() {
     renderVentas();
     renderConfig();
   } catch(err) {
+    if (err.message === "401") {
+      cerrarSesion();
+      return;
+    }
     console.error("fetchData error:", err);
     mostrarErrorConexion(err.message || "No se pudo conectar con Supabase. Verifica tu conexión e inténtalo de nuevo.");
   }
@@ -649,7 +669,10 @@ function renderConfig() {
       <div class="card-value" style="font-size:20px;color:var(--text)">${activos} activos${inactivos>0?` · <span style="color:var(--sub);font-size:16px">${inactivos} inactivos</span>`:""}</div>
       <div class="card-sub">Se importan automáticamente al iniciar el mes</div>
     </div>
-    ${cats}`;
+    ${cats}
+    <button onclick="cerrarSesion()" style="width:100%;margin-top:8px;background:rgba(255,69,58,.12);color:var(--red);border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer">
+      Cerrar sesión
+    </button>`;
 }
 
 function toggleNuevaCat(prefix) {
@@ -1260,6 +1283,82 @@ function renderGraficos() {
   });
 }
 
+// ══ AUTH ══════════════════════════════════════════════════
+function mostrarLogin() {
+  document.getElementById("login-screen").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+function ocultarLogin() {
+  document.getElementById("login-screen").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+async function hacerLogin() {
+  const email = document.getElementById("login-email").value.trim();
+  const pass  = document.getElementById("login-pass").value;
+  const btn   = document.getElementById("login-btn");
+  const err   = document.getElementById("login-error");
+  if (!email || !pass) { err.textContent = "Completa email y contraseña"; return; }
+  btn.textContent = "Ingresando…"; btn.disabled = true; err.textContent = "";
+  try {
+    await authLogin(email, pass);
+    ocultarLogin();
+    await fetchData();
+  } catch(e) {
+    err.textContent = e.message;
+  } finally {
+    btn.textContent = "Ingresar"; btn.disabled = false;
+  }
+}
+
+async function authLogin(email, password) {
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error_description || data.msg || "Credenciales incorrectas");
+  guardarSesion(data.access_token, data.refresh_token);
+}
+
+async function authRefresh(refresh_token) {
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token })
+  });
+  if (!res.ok) return false;
+  const data = await res.json();
+  guardarSesion(data.access_token, data.refresh_token);
+  return true;
+}
+
+function guardarSesion(access, refresh) {
+  HDR.Authorization = `Bearer ${access}`;
+  localStorage.setItem("sb_access",  access);
+  localStorage.setItem("sb_refresh", refresh);
+}
+
+function cerrarSesion() {
+  localStorage.removeItem("sb_access");
+  localStorage.removeItem("sb_refresh");
+  HDR.Authorization = `Bearer ${SB_KEY}`;
+  mostrarLogin();
+}
+
+async function initAuth() {
+  const refresh = localStorage.getItem("sb_refresh");
+  const access  = localStorage.getItem("sb_access");
+  if (access) HDR.Authorization = `Bearer ${access}`;
+  if (refresh) {
+    const ok = await authRefresh(refresh);
+    if (ok) return true;
+  }
+  mostrarLogin();
+  return false;
+}
+
 // ══ LIQUIDACIÓN PDF ═══════════════════════════════════════
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -1394,8 +1493,12 @@ async function insertarLiquidacion() {
   }
 }
 
-fetchData();
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+// Arranque: verificar sesión antes de cargar datos
+(async () => {
+  const autenticado = await initAuth();
+  if (autenticado) await fetchData();
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+})();
 </script>
 </body>
 </html>
