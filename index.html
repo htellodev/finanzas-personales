@@ -9,7 +9,10 @@
   <meta name="apple-mobile-web-app-title" content="Finanzas" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <title>Finanzas Personales</title>
+  <title>Finanzas HT</title>
+  <meta name="description" content="Herramienta personal de gestión financiera — uso privado" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="author" content="Hector Tello" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
@@ -222,6 +225,14 @@
 </div>
 <button class="fab" id="fab-ventas" style="display:none" onclick="abrirModalVenta()">+</button>
 
+<!-- ══ TARJETAS ══ -->
+<div id="page-tarjetas" class="page">
+  <div id="tarjetas-content" class="loading">
+    <span class="dot">●</span><span class="dot">●</span><span class="dot">●</span>
+  </div>
+</div>
+<button class="fab" id="fab-tarjetas" style="display:none" onclick="abrirSeleccionBanco()">+</button>
+
 <!-- ══ AJUSTES ══ -->
 <div id="page-config" class="page">
   <div id="config-content" class="loading">
@@ -366,6 +377,75 @@
   </div>
 </div>
 
+<!-- ── Estado de cuenta (file input + modales) ── -->
+<input type="file" id="ec-input" accept="application/pdf" style="display:none" onchange="procesarEstadoCuenta(this)" />
+
+<!-- Modal selección banco -->
+<div id="modal-banco" class="modal-overlay" onclick="if(event.target===this)cerrarModal('modal-banco')">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <h2>¿Qué tarjeta es?</h2>
+    <div style="display:grid;gap:10px;margin-top:12px">
+      <button onclick="setBanco('cmr_falabella')" style="background:var(--bg3);border:none;border-radius:12px;padding:16px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">🟠</span>
+        <div><div style="font-weight:700;color:var(--text)">CMR Falabella</div><div style="font-size:12px;color:var(--sub)">Banco Falabella</div></div>
+      </button>
+      <button onclick="setBanco('banco_chile')" style="background:var(--bg3);border:none;border-radius:12px;padding:16px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">🔵</span>
+        <div><div style="font-weight:700;color:var(--text)">Banco de Chile</div><div style="font-size:12px;color:var(--sub)">Tarjeta de crédito</div></div>
+      </button>
+    </div>
+    <button class="btn-cancel" style="width:100%;margin-top:10px" onclick="cerrarModal('modal-banco')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Modal confirmar estado de cuenta -->
+<div id="modal-ec" class="modal-overlay" onclick="if(event.target===this)cerrarModal('modal-ec')">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <h2 id="ec-titulo">Confirmar estado de cuenta</h2>
+    <div id="ec-preview" style="margin:8px 0 4px"></div>
+    <div id="ec-error" style="color:var(--red);font-size:13px;display:none"></div>
+    <div class="modal-actions-3" style="margin-top:12px">
+      <button class="btn-cancel" onclick="cerrarModal('modal-ec')">Cancelar</button>
+      <button id="ec-btn" class="btn-confirm" onclick="insertarEstadoCuenta()" style="grid-column:span 2">✓ Insertar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar categoría transacción -->
+<div id="modal-cat-tx" class="modal-overlay" onclick="if(event.target===this)cerrarModal('modal-cat-tx')">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <h2>Categoría</h2>
+    <input type="hidden" id="cat-tx-id" />
+    <div id="cat-tx-desc" style="font-size:13px;color:var(--sub);margin-bottom:12px"></div>
+    <select id="cat-tx-sel" class="modal-input" style="font-size:15px">
+      <option value="supermercado">🛒 Supermercado</option>
+      <option value="restaurantes">🍽 Restaurantes</option>
+      <option value="delivery">🛵 Delivery comida</option>
+      <option value="transporte">🚗 Transporte</option>
+      <option value="streaming">🎬 Streaming / Digital</option>
+      <option value="suscripciones">💻 Suscripciones</option>
+      <option value="compras_online">📦 Compras online</option>
+      <option value="falabella">🟠 Falabella</option>
+      <option value="salud">💊 Salud</option>
+      <option value="deporte">🏃 Deporte</option>
+      <option value="entretenimiento">🎭 Entretenimiento</option>
+      <option value="bencina">⛽ Bencina</option>
+      <option value="seguros">🛡 Seguros</option>
+      <option value="peluqueria">✂️ Peluquería</option>
+      <option value="donaciones">❤️ Donaciones</option>
+      <option value="otros">📌 Otros</option>
+    </select>
+    <div class="modal-actions-3" style="margin-top:12px">
+      <button class="btn-cancel" onclick="cerrarModal('modal-cat-tx')">Cancelar</button>
+      <button id="cat-tx-del" class="btn-danger" onclick="eliminarTransaccion()" style="display:none">Eliminar</button>
+      <button class="btn-confirm" onclick="guardarCategoriaTx()" style="grid-column:span 2">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Modal liquidación PDF ── -->
 <input type="file" id="pdf-input" accept="application/pdf" style="display:none" onchange="procesarPDF(this)" />
 <div id="modal-liquidacion" class="modal-overlay" onclick="if(event.target===this)cerrarModal('modal-liquidacion')">
@@ -399,6 +479,10 @@
     <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
     Ingresos
   </button>
+  <button onclick="goTo('tarjetas',this)">
+    <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    Tarjetas
+  </button>
   <button onclick="goTo('config',this)">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     Ajustes
@@ -408,8 +492,8 @@
 <!-- ── Login screen ── -->
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">
   <div style="font-size:40px;margin-bottom:8px">💰</div>
-  <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Finanzas Personales</h1>
-  <p style="font-size:13px;color:var(--sub);margin-bottom:32px">Inicia sesión para continuar</p>
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Finanzas HT</h1>
+  <p style="font-size:13px;color:var(--sub);margin-bottom:32px">App personal · acceso privado</p>
   <div style="width:100%;max-width:360px">
     <input id="login-email" class="modal-input" type="email" inputmode="email" autocomplete="email" placeholder="Email" style="margin-bottom:10px" />
     <input id="login-pass"  class="modal-input" type="password" autocomplete="current-password" placeholder="Contraseña" style="margin-bottom:6px" onkeydown="if(event.key==='Enter')hacerLogin()" />
@@ -437,7 +521,7 @@ const periodoHoy = () => { const h=new Date(); return new Date(h.getFullYear(),h
 const fechaHoy   = () => new Date().toISOString().split("T")[0];
 const diaCorto   = f => { const d=new Date(f+"T12:00:00"); return d.toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit"}); };
 
-let allData=[], pensionData=[], otrosData=[], ventasData=[], egresosPlantilla=[], egresosData=[];
+let allData=[], pensionData=[], otrosData=[], ventasData=[], egresosPlantilla=[], egresosData=[], tarjetaData=[];
 
 const CAT_LABELS = {
   cuenta_basica:  "Cuentas básicas",
@@ -468,13 +552,14 @@ function mostrarErrorConexion(msg) {
 
 async function fetchData() {
   try {
-    const [rL,rP,rO,rV,rEP,rE] = await Promise.all([
+    const [rL,rP,rO,rV,rEP,rE,rT] = await Promise.all([
       fetch(`${SB_URL}/rest/v1/liquidaciones?select=*&order=periodo.asc,tipo.asc`, {headers:HDR}),
       fetch(`${SB_URL}/rest/v1/pensiones?select=*&order=periodo.asc`, {headers:HDR}),
       fetch(`${SB_URL}/rest/v1/otros_ingresos?select=*&order=periodo.asc,tipo.asc`, {headers:HDR}),
       fetch(`${SB_URL}/rest/v1/ventas?select=*&order=fecha.desc`, {headers:HDR}),
       fetch(`${SB_URL}/rest/v1/egresos_plantilla?activo=eq.true&order=categoria.asc,nombre.asc`, {headers:HDR}),
-      fetch(`${SB_URL}/rest/v1/egresos?select=*&order=periodo.desc,categoria.asc,nombre.asc`, {headers:HDR})
+      fetch(`${SB_URL}/rest/v1/egresos?select=*&order=periodo.desc,categoria.asc,nombre.asc`, {headers:HDR}),
+      fetch(`${SB_URL}/rest/v1/tarjeta_transacciones?select=*&order=periodo.desc,fecha.desc`, {headers:HDR})
     ]);
 
     // Verificar respuesta — 401 = sesión expirada
@@ -487,6 +572,7 @@ async function fetchData() {
     const rawV=await rV.json(); ventasData       = Array.isArray(rawV)?rawV:[];
     const rawEP=await rEP.json(); egresosPlantilla = Array.isArray(rawEP)?rawEP:[];
     const rawE=await rE.json();   egresosData      = Array.isArray(rawE)?rawE:[];
+    const rawT=await rT.json();   tarjetaData      = Array.isArray(rawT)?rawT:[];
 
     const last = allData.filter(r=>r.tipo==="regular").at(-1);
     document.getElementById("header-sub").textContent = last ? `Última liquidación: ${mesLargo(last.periodo)}` : "Sin datos";
@@ -495,6 +581,7 @@ async function fetchData() {
     renderHistorico();
     renderGraficos();
     renderVentas();
+    renderTarjetas();
     renderConfig();
   } catch(err) {
     if (err.message === "401") {
@@ -512,8 +599,9 @@ function goTo(id,btn) {
   document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
   document.getElementById("page-"+id).classList.add("active");
   btn.classList.add("active");
-  document.getElementById("fab-ventas").style.display = id==="ventas" ? "flex" : "none";
-  document.getElementById("fab-config").style.display = id==="config"  ? "flex" : "none";
+  document.getElementById("fab-ventas").style.display   = id==="ventas"   ? "flex" : "none";
+  document.getElementById("fab-config").style.display   = id==="config"   ? "flex" : "none";
+  document.getElementById("fab-tarjetas").style.display = id==="tarjetas" ? "flex" : "none";
 }
 
 // ── Modales genérico ───────────────────────────────────────
@@ -1281,6 +1369,285 @@ function renderGraficos() {
       scales:{x:{stacked:true,ticks:{font:{size:11},color:gc.color},grid:{display:false}},
               y:{stacked:true,ticks:{callback:v=>"$"+Math.round(v/1000)+"k",font:{size:10},color:gc.color},grid:{color:gc.grid}}}}
   });
+}
+
+// ══ TARJETAS ══════════════════════════════════════════════
+const CAT_TX_LABELS = {
+  supermercado:"🛒 Supermercado", restaurantes:"🍽 Restaurantes", delivery:"🛵 Delivery",
+  transporte:"🚗 Transporte", streaming:"🎬 Streaming", suscripciones:"💻 Suscripciones",
+  compras_online:"📦 Compras online", falabella:"🟠 Falabella", salud:"💊 Salud",
+  deporte:"🏃 Deporte", entretenimiento:"🎭 Entretenimiento", bencina:"⛽ Bencina",
+  seguros:"🛡 Seguros", peluqueria:"✂️ Peluquería", donaciones:"❤️ Donaciones", otros:"📌 Otros"
+};
+
+const CAT_TX_KEYWORDS = {
+  transporte:      ["uber", "didi", "cabify", "efe_", "metro ", "taxi", "bolt", "blablacar"],
+  delivery:        ["uber eats", "pedidos", "rappi", "justo", "cornershop"],
+  streaming:       ["netflix", "spotify", "hbo", "disney", "youtube", "apple.com/bi", "dl*google", "nintendo", "prime video"],
+  suscripciones:   ["claude.ai", "openai", "chatgpt", "midjourney", "facebk", "apple.com cl apple"],
+  compras_online:  ["mercado libre", "meli", "amazon", "aliexpre", "ikea", "mp *", "falabella.com"],
+  falabella:       ["compra falabella"],
+  salud:           ["farmacia", "cruz verde", "salcobrand", "clinica", "hospital", "cruzverde"],
+  deporte:         ["padel", "fitness", "gym", "sport", "stadium"],
+  restaurantes:    ["restaurant", "buena carne", "pizza", "sushi", "burger", "café", "cafe ", "carne", "vina pavel", "only marina", "club vina", "local nuevo", "minimarket"],
+  supermercado:    ["supermercado", "tottus", "jumbo", "lider", "unimarc", "walmart"],
+  entretenimiento: ["cinemark", "cinestar", "imax", "teatro", "latiquetera", "ticketmaster"],
+  donaciones:      ["unicef", "donando", "teletón"],
+  bencina:         ["copec", "shell", "petrobras", "bencina", "enex"],
+  seguros:         ["seguro"],
+  peluqueria:      ["barber", "peluq", "salon", "radiante"],
+};
+
+function categorizarAuto(desc) {
+  const d = desc.toLowerCase();
+  for (const [cat, keys] of Object.entries(CAT_TX_KEYWORDS)) {
+    if (keys.some(k => d.includes(k))) return cat;
+  }
+  return "otros";
+}
+
+// Render
+function renderTarjetas() {
+  if (!tarjetaData.length) {
+    document.getElementById("tarjetas-content").innerHTML = `
+      <div class="card" style="text-align:center;padding:32px 16px">
+        <div style="font-size:36px;margin-bottom:12px">💳</div>
+        <div style="color:var(--sub);font-size:14px;margin-bottom:16px">Sin estados de cuenta cargados</div>
+        <button onclick="document.getElementById('ec-input').click()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer">+ Cargar estado de cuenta</button>
+      </div>`;
+    return;
+  }
+
+  // Períodos disponibles
+  const periodos = [...new Set(tarjetaData.map(t=>t.periodo.slice(0,7)))].sort().reverse();
+  const periodoSel = _periodoTarjeta || periodos[0];
+  if (!_periodoTarjeta) _periodoTarjeta = periodoSel;
+
+  const txPeriodo = tarjetaData.filter(t=>t.periodo.startsWith(periodoSel));
+  const totalPeriodo = txPeriodo.reduce((s,t)=>s+t.monto_cuota,0);
+
+  // Agrupar por categoría
+  const porCat = {};
+  for (const t of txPeriodo) {
+    if (!porCat[t.categoria]) porCat[t.categoria] = [];
+    porCat[t.categoria].push(t);
+  }
+
+  const bancos = [...new Set(txPeriodo.map(t=>t.banco))];
+  const totalBanco = banco => txPeriodo.filter(t=>t.banco===banco).reduce((s,t)=>s+t.monto_cuota,0);
+
+  const periodoOpts = periodos.map(p=>`<option value="${p}" ${p===periodoSel?"selected":""}>${mesLargo(p+"-01")}</option>`).join("");
+
+  const catRows = Object.entries(porCat)
+    .sort((a,b)=>b[1].reduce((s,t)=>s+t.monto_cuota,0)-a[1].reduce((s,t)=>s+t.monto_cuota,0))
+    .map(([cat,items])=>{
+      const total = items.reduce((s,t)=>s+t.monto_cuota,0);
+      const eid = `exp-tx-${cat}`;
+      const subs = items.map(t=>`
+        <div class="sub-row" onclick="abrirModalCategoriaTx('${t.id}')" style="cursor:pointer">
+          <div style="flex:1">
+            <div style="font-size:13px">${t.descripcion}</div>
+            <div style="font-size:10px;color:var(--sub)">${diaCorto(t.fecha)} · ${t.banco==="cmr_falabella"?"CMR":"BChile"}${t.total_cuotas>1?` · cuota ${t.num_cuota}/${t.total_cuotas}`:""}</div>
+          </div>
+          <span class="neg" style="font-size:13px;white-space:nowrap">-${clp(t.monto_cuota)}</span>
+        </div>`).join("");
+      return `
+        <div class="mes-row" style="cursor:pointer" onclick="toggleExpand('${eid}')">
+          <div class="mes-row-info">
+            <div class="mes-row-label">${CAT_TX_LABELS[cat]??cat}</div>
+            <div class="mes-row-sub">${items.length} transacción${items.length!==1?"es":""}</div>
+          </div>
+          <div class="mes-row-amount neg">-${clp(total)}</div>
+          <span id="${eid}-chev" class="mes-row-chevron">▼</span>
+        </div>
+        <div id="${eid}" class="expand-body" style="display:none">${subs}</div>`;
+    }).join("");
+
+  document.getElementById("tarjetas-content").innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <select onchange="_periodoTarjeta=this.value;renderTarjetas()" style="flex:1;background:var(--bg2);color:var(--text);border:none;border-radius:10px;padding:10px 12px;font-size:14px">${periodoOpts}</select>
+    </div>
+
+    <div class="card" style="border-left:4px solid var(--red)">
+      <div class="card-label">Total cargo tarjetas — ${mesLargo(periodoSel+"-01")}</div>
+      <div class="card-value">-${clp(totalPeriodo)}</div>
+      <div class="card-sub">${bancos.map(b=>`${b==="cmr_falabella"?"CMR":"BChile"}: ${clp(totalBanco(b))}`).join(" · ")}</div>
+    </div>
+
+    <div class="section-title">Por categoría</div>
+    <div class="card" style="padding:0 16px">${catRows}</div>`;
+}
+
+let _periodoTarjeta = null;
+let _ecDatos = null;
+let _ecBanco = null;
+
+// Selección de banco
+function abrirSeleccionBanco() {
+  document.getElementById("modal-banco").style.display = "flex";
+}
+
+function setBanco(banco) {
+  _ecBanco = banco;
+  cerrarModal("modal-banco");
+  document.getElementById("ec-input").click();
+}
+
+// Procesar PDF estado de cuenta
+async function procesarEstadoCuenta(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = "";
+  if (!_ecBanco) { abrirSeleccionBanco(); return; }
+
+  document.getElementById("ec-preview").innerHTML = `<div class="loading" style="padding:20px"><span class="dot">●</span><span class="dot">●</span><span class="dot">●</span></div>`;
+  document.getElementById("ec-error").style.display = "none";
+  document.getElementById("ec-titulo").textContent = `Confirmar — ${_ecBanco==="cmr_falabella"?"CMR Falabella":"Banco Chile"}`;
+  document.getElementById("modal-ec").style.display = "flex";
+
+  try {
+    const ab  = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: ab}).promise;
+    let texto = "";
+    for (let i=1; i<=pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const sorted  = [...content.items].filter(it=>it.str.trim())
+        .sort((a,b)=>{ const dy=b.transform[5]-a.transform[5]; return Math.abs(dy)>3?dy:a.transform[4]-b.transform[4]; });
+      texto += sorted.map(s=>s.str).join(" ") + "\n";
+    }
+    for (let i=0; i<4; i++) texto = texto.replace(/(\d)\s*([.,])\s*(\d)/g,"$1$2$3");
+
+    const txs = _ecBanco==="cmr_falabella" ? parsearCMR(texto) : parsearBancoChile(texto);
+    if (!txs.length) throw new Error("No se encontraron transacciones en el PDF.");
+
+    _ecDatos = txs;
+    const total = txs.reduce((s,t)=>s+t.monto_cuota,0);
+    document.getElementById("ec-preview").innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sep)">
+        <span style="font-size:13px;color:var(--sub)">Transacciones</span>
+        <span style="font-size:13px;font-weight:600">${txs.length}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sep)">
+        <span style="font-size:13px;color:var(--sub)">Período</span>
+        <span style="font-size:13px;font-weight:600">${txs[0].periodo.slice(0,7)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0">
+        <span style="font-size:13px;color:var(--sub)">💳 Total cargo mes</span>
+        <span style="font-size:14px;font-weight:700;color:var(--red)">-${clp(total)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:8px;text-align:center">${file.name}</div>`;
+  } catch(err) {
+    _ecDatos = null;
+    document.getElementById("ec-preview").innerHTML = "";
+    document.getElementById("ec-error").textContent = err.message;
+    document.getElementById("ec-error").style.display = "block";
+  }
+}
+
+function parsearFecha(str, formato4=true) {
+  // DD/MM/YYYY o DD/MM/YY
+  const p = str.split("/");
+  if (p.length!==3) return null;
+  const d=p[0], m=p[1], y=formato4?p[2]:"20"+p[2];
+  return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+}
+
+function parsearCMR(texto) {
+  // Buscar período
+  const mPer = texto.match(/Fecha Facturaci[oó]n Estado de Cuenta[:\s]+(\d{2}\/\d{2}\/\d{4})/i);
+  const periodo = mPer ? parsearFecha(mPer[1]).slice(0,7)+"-01" : periodoHoy();
+
+  const txs = [];
+  // Patrón: fecha descripcion T monto_op monto_pagar n/n mes-año cuota
+  const re = /(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+T\s+([\d.]+)\s+([\d.]+)\s+(\d+)\/(\d+)\s+\w+-\d{4}\s+([\d.]+)/g;
+  let m;
+  while ((m=re.exec(texto))!==null) {
+    const fecha = parsearFecha(m[1]);
+    if (!fecha) continue;
+    const desc = m[2].replace(/^(S\/I|[A-Z][a-z][\w\s]*?)\s+/,"").trim(); // quitar lugar al inicio
+    const monto_op   = parseNum(m[3]);
+    const monto_cuota= parseNum(m[7]);
+    const num_cuota  = parseInt(m[5]);
+    const total_cuotas=parseInt(m[6]);
+    if (monto_op<=0 || monto_cuota<=0) continue;
+    txs.push({ banco:"cmr_falabella", periodo, fecha, descripcion:desc,
+      monto_operacion:monto_op, monto_cuota, num_cuota, total_cuotas,
+      categoria: categorizarAuto(desc) });
+  }
+  return txs;
+}
+
+function parsearBancoChile(texto) {
+  const mPer = texto.match(/PER[IÍ]ODO FACTURADO\s+(\d{2}\/\d{2}\/\d{4})/i);
+  const periodo = mPer ? parsearFecha(mPer[1]).slice(0,7)+"-01" : periodoHoy();
+
+  const txs = [];
+  // Patrón: fecha código descripcion (TASA INT...)? $ monto $ monto n/n $ cuota
+  const re = /(\d{2}\/\d{2}\/\d{2})\s+\d{10,14}\s+(.+?)\s+\$\s*([\d.]+)\s+\$\s*([\d.]+)\s+(\d+)\/(\d+)\s+\$\s*([\d.]+)/g;
+  let m;
+  while ((m=re.exec(texto))!==null) {
+    const fecha = parsearFecha(m[1], false);
+    if (!fecha) continue;
+    let desc = m[2].replace(/TASA INT\.?\s*[\d,]+%?/gi,"").trim();
+    const monto_op    = parseNum(m[3]);
+    const monto_cuota = parseNum(m[7]);
+    const num_cuota   = parseInt(m[5]);
+    const total_cuotas= parseInt(m[6]);
+    if (monto_op<=0 || monto_cuota<=0) continue;
+    txs.push({ banco:"banco_chile", periodo, fecha, descripcion:desc,
+      monto_operacion:monto_op, monto_cuota, num_cuota, total_cuotas,
+      categoria: categorizarAuto(desc) });
+  }
+  return txs;
+}
+
+async function insertarEstadoCuenta() {
+  if (!_ecDatos?.length) return;
+  const btn = document.getElementById("ec-btn");
+  btn.textContent="Insertando…"; btn.disabled=true;
+  const res = await fetch(`${SB_URL}/rest/v1/tarjeta_transacciones`, {
+    method:"POST",
+    headers:{...HDR,"Content-Type":"application/json","Prefer":"return=minimal"},
+    body: JSON.stringify(_ecDatos)
+  });
+  btn.textContent="✓ Insertar"; btn.disabled=false;
+  if (res.ok||res.status===201||res.status===204) {
+    cerrarModal("modal-ec");
+    _ecDatos=null; _ecBanco=null;
+    await fetchData();
+  } else {
+    document.getElementById("ec-error").textContent=`Error al insertar (HTTP ${res.status})`;
+    document.getElementById("ec-error").style.display="block";
+  }
+}
+
+// Editar categoría
+function abrirModalCategoriaTx(id) {
+  const t = tarjetaData.find(x=>x.id===id);
+  if (!t) return;
+  document.getElementById("cat-tx-id").value = id;
+  document.getElementById("cat-tx-desc").textContent = `${t.descripcion} · ${diaCorto(t.fecha)} · -${clp(t.monto_cuota)}`;
+  document.getElementById("cat-tx-sel").value = t.categoria;
+  document.getElementById("cat-tx-del").style.display = "block";
+  document.getElementById("modal-cat-tx").style.display = "flex";
+}
+
+async function guardarCategoriaTx() {
+  const id  = document.getElementById("cat-tx-id").value;
+  const cat = document.getElementById("cat-tx-sel").value;
+  await fetch(`${SB_URL}/rest/v1/tarjeta_transacciones?id=eq.${id}`,
+    {method:"PATCH", headers:{...HDR,"Content-Type":"application/json"}, body:JSON.stringify({categoria:cat})});
+  cerrarModal("modal-cat-tx");
+  await fetchData();
+}
+
+async function eliminarTransaccion() {
+  const id = document.getElementById("cat-tx-id").value;
+  if (!id||!confirm("¿Eliminar esta transacción?")) return;
+  await fetch(`${SB_URL}/rest/v1/tarjeta_transacciones?id=eq.${id}`, {method:"DELETE", headers:HDR});
+  cerrarModal("modal-cat-tx");
+  await fetchData();
 }
 
 // ══ AUTH ══════════════════════════════════════════════════
