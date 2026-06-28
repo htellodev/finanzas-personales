@@ -1393,6 +1393,12 @@ async function procesarPDF(input) {
       texto += items.items.map(s=>s.str).join(" ") + "\n";
     }
 
+    // Normalizar: PDF.js a veces separa dígitos de sus separadores con espacios
+    // Ej: "1 . 744 . 918" → "1.744.918", "30 , 00" → "30,00"
+    for (let i=0; i<4; i++) {
+      texto = texto.replace(/(\d)\s*([.,])\s*(\d)/g, "$1$2$3");
+    }
+
     // Período
     const mPer = texto.match(/mes de (\w+) de (\d{4})/i);
     if (!mPer) throw new Error("No se encontró el período en el PDF. ¿Es una liquidación válida?");
@@ -1407,8 +1413,8 @@ async function procesarPDF(input) {
     const tieneSueldo  = /Sueldo Base/i.test(texto);
     const tipo = (tieneBonoDes && !tieneSueldo) ? "bono_desempeno" : "regular";
 
-    // Haberes
-    const sueldo_base         = parseNum(findVal(texto, /Sueldo Base\s+[\d,]+\s+([\d.]+)/));
+    // Haberes — [\d.,]+ para tolerar días/porcentaje con punto o coma
+    const sueldo_base         = parseNum(findVal(texto, /Sueldo Base\s+[\d.,]+\s+([\d.]+)/));
     const gratificacion_legal = parseNum(findVal(texto, /Gratificacion Legal Mensu\s+([\d.]+)/));
     const ayuda_conexion      = parseNum(findVal(texto, /Ayuda Costos de Conexi[oó]n\s+([\d.]+)/));
     const bono_extraordinario = parseNum(findVal(texto, /Bono Extraordinario\s+([\d.]+)/));
@@ -1418,11 +1424,11 @@ async function procesarPDF(input) {
     const imponible  = parseNum(findVal(texto, /IMPONIBLE\s+([\d.]+)/));
     const tributable = parseNum(findVal(texto, /TRIBUTABLE\s+([\d.]+)/));
 
-    // Descuentos legales
-    const afp_fondo_pension = parseNum(findVal(texto, /Fondo Pens AFP Capital\s+[\d,]+\s+([\d.]+)/));
-    const comision_afp      = parseNum(findVal(texto, /Comisi[oó]n AFP Capital\s+[\d,]+\s+([\d.]+)/));
-    const isapre_legal      = parseNum(findVal(texto, /7% Legal Vida Tres\s+[\d,]+\s+([\d.]+)/));
-    const impuesto_unico    = parseNum(findVal(texto, /Impuesto Unico Retenido\s+[\d,]+\s+([\d.]+)/));
+    // Descuentos legales — [\d.,]+ para tolerar porcentaje con punto o coma
+    const afp_fondo_pension = parseNum(findVal(texto, /Fondo Pens AFP Capital\s+[\d.,]+\s+([\d.]+)/));
+    const comision_afp      = parseNum(findVal(texto, /Comisi[oó]n AFP Capital\s+[\d.,]+\s+([\d.]+)/));
+    const isapre_legal      = parseNum(findVal(texto, /7% Legal Vida Tres\s+[\d.,]+\s+([\d.]+)/));
+    const impuesto_unico    = parseNum(findVal(texto, /Impuesto Unico Retenido\s+[\d.,]+\s+([\d.]+)/));
 
     // Descuentos varios
     const desc_anticipo        = parseNum(findVal(texto, /Desc Ant Extraordinario\s+([\d.]+)/));
