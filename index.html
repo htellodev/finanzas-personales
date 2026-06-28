@@ -1407,6 +1407,7 @@ async function procesarPDF(input) {
     for (let i=0; i<4; i++) {
       texto = texto.replace(/(\d)\s*([.,])\s*(\d)/g, "$1$2$3");
     }
+    console.log("=== TEXTO PDF ===\n", texto);
 
     // Período
     const mPer = texto.match(/mes de (\w+) de (\d{4})/i);
