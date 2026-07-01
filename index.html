@@ -187,13 +187,34 @@
     .btn-danger       { background: var(--red); color: white; }
     .modal-actions-3  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 20px; }
     .modal-actions-3 button { padding: 12px; border-radius: 12px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+    /* ── Navegador período ── */
+    .period-nav { display:flex; align-items:center; gap:6px; margin-top:6px; }
+    .period-btn {
+      background:var(--bg3); border:none; color:var(--sub);
+      width:28px; height:28px; border-radius:8px; font-size:16px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition: background .15s;
+    }
+    .period-btn:active { background:var(--bg4); }
+    .period-btn.disabled { opacity:.3; pointer-events:none; }
+    #periodo-display { font-size:13px; font-weight:600; color:var(--text); min-width:110px; text-align:center; }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>💰 Finanzas Personales</h1>
-  <p id="header-sub">Cargando...</p>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <h1>💰 Finanzas Personales</h1>
+      <p id="header-sub" style="margin-top:2px">Cargando...</p>
+    </div>
+    <div id="periodo-nav" class="period-nav" style="display:none">
+      <button class="period-btn" id="btn-prev" onclick="cambiarPeriodo(-1)">‹</button>
+      <span id="periodo-display"></span>
+      <button class="period-btn" id="btn-next" onclick="cambiarPeriodo(1)">›</button>
+    </div>
+  </div>
 </header>
 
 <!-- ══ ESTE MES ══ -->
@@ -522,6 +543,7 @@ const fechaHoy   = () => new Date().toISOString().split("T")[0];
 const diaCorto   = f => { const d=new Date(f+"T12:00:00"); return d.toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit"}); };
 
 let allData=[], pensionData=[], otrosData=[], ventasData=[], egresosPlantilla=[], egresosData=[], tarjetaData=[];
+let periodoActivo = periodoHoy();
 
 const CAT_LABELS = {
   cuenta_basica:  "Cuentas básicas",
@@ -577,6 +599,7 @@ async function fetchData() {
     const last = allData.filter(r=>r.tipo==="regular").at(-1);
     document.getElementById("header-sub").textContent = last ? `Última liquidación: ${mesLargo(last.periodo)}` : "Sin datos";
 
+    actualizarNavPeriodo();
     renderEsteMes();
     renderHistorico();
     renderGraficos();
@@ -602,6 +625,21 @@ function goTo(id,btn) {
   document.getElementById("fab-ventas").style.display   = id==="ventas"   ? "flex" : "none";
   document.getElementById("fab-config").style.display   = id==="config"   ? "flex" : "none";
   document.getElementById("fab-tarjetas").style.display = id==="tarjetas" ? "flex" : "none";
+  document.getElementById("periodo-nav").style.display  = id==="mes"      ? "flex" : "none";
+}
+
+// ── Selector de período ────────────────────────────────────
+function actualizarNavPeriodo() {
+  document.getElementById("periodo-display").textContent = mesLargo(periodoActivo);
+  const esHoyOFuturo = periodoActivo >= periodoHoy();
+  document.getElementById("btn-next").classList.toggle("disabled", esHoyOFuturo);
+}
+
+function cambiarPeriodo(dir) {
+  const d = new Date(periodoActivo+"T12:00:00");
+  periodoActivo = new Date(d.getFullYear(), d.getMonth()+dir, 1).toISOString().split("T")[0];
+  actualizarNavPeriodo();
+  renderEsteMes();
 }
 
 // ── Modales genérico ───────────────────────────────────────
@@ -609,7 +647,7 @@ function cerrarModal(id) { document.getElementById(id).style.display="none"; }
 
 // ── Modal pensión ───────────────────────────────────────────
 function abrirModalPension() {
-  const periodo = periodoHoy();
+  const periodo = periodoActivo;
   const yaReg   = pensionData.find(p=>p.periodo===periodo);
   document.getElementById("pen-titulo").textContent = yaReg ? "Editar pensión" : "Registrar pensión";
   document.getElementById("pen-periodo-val").value  = periodo;
@@ -635,7 +673,7 @@ async function confirmarPension() {
 
 // ── Modal arriendo ──────────────────────────────────────────
 function abrirModalArriendo() {
-  const periodo  = periodoHoy();
+  const periodo  = periodoActivo;
   const deptoReg = otrosData.find(o=>o.periodo===periodo&&o.tipo==="arriendo_depto");
   const estacReg = otrosData.find(o=>o.periodo===periodo&&o.tipo==="arriendo_estacionamiento");
   const yaReg    = deptoReg!=null||estacReg!=null;
@@ -835,7 +873,7 @@ async function eliminarPlantilla() {
 
 // ── Egresos ────────────────────────────────────────────────
 async function importarFijos(btn) {
-  const periodo = periodoHoy();
+  const periodo = periodoActivo;
   btn.textContent="Importando…"; btn.disabled=true;
 
   // Buscar mes anterior para pre-rellenar montos
@@ -864,7 +902,7 @@ function abrirModalEgreso(id=null) {
   const e = id ? egresosData.find(x=>x.id===id) : null;
   document.getElementById("egr-titulo").textContent    = e ? "Editar egreso" : "Agregar egreso";
   document.getElementById("egr-id").value              = e?.id ?? "";
-  document.getElementById("egr-periodo-val").value     = periodoHoy();
+  document.getElementById("egr-periodo-val").value     = periodoActivo;
   document.getElementById("egr-nombre").value          = e?.nombre ?? "";
   document.getElementById("egr-monto").value           = e?.monto ? e.monto.toLocaleString("es-CL") : "";
   document.getElementById("egr-pagado").checked        = e?.pagado ?? false;
@@ -939,7 +977,7 @@ function toggleExpand(id) {
 
 // ══ ESTE MES ══════════════════════════════════════════════
 function renderEsteMes() {
-  const periodo   = periodoHoy();
+  const periodo   = periodoActivo;
   const regulares = allData.filter(r=>r.tipo==="regular");
   const bonos     = allData.filter(r=>r.tipo==="bono_desempeno");
 
